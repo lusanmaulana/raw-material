@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:raw_material/screens/import_screen.dart';
@@ -15,9 +16,11 @@ class _SplashScreenState extends State<SplashScreen> {
     Future.delayed(
       const Duration(seconds: 3),
       () {
-        Navigator.of(context).pushReplacement(CupertinoPageRoute(
-          builder: (context) => const ImportScreen(),
-        ));
+        FilePicker.platform.clearTemporaryFiles().then((value) {
+          Navigator.of(context).pushReplacement(CupertinoPageRoute(
+            builder: (context) => const ImportScreen(),
+          ));
+        });
       },
     );
     super.initState();

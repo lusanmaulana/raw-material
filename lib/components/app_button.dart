@@ -6,16 +6,19 @@ class AppButton extends StatelessWidget {
     required this.icon,
     required this.text,
     required this.onPressed,
+    this.padding,
   });
 
   final IconData icon;
   final String text;
   final VoidCallback onPressed;
+  final EdgeInsets? padding;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       width: 144,
+      padding: padding,
       child: FilledButton(
         style: FilledButton.styleFrom(
           shape: RoundedRectangleBorder(

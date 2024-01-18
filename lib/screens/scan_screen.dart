@@ -1,9 +1,10 @@
 import 'dart:io';
 
 import 'package:assets_audio_player/assets_audio_player.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:raw_material/components/app_button.dart';
 import 'package:raw_material/components/app_header.dart';
 
@@ -17,11 +18,8 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  bool _showScanner = false;
-  bool _enableTorch = false;
   final _importedCodes = <String>[];
   final _scannedCodes = <String>[];
-  MobileScannerController? _mobileScannerController;
   final _assetsAudioPlayer = AssetsAudioPlayer();
 
   @override
@@ -32,7 +30,6 @@ class _ScanScreenState extends State<ScanScreen> {
         .where((e) => e.isNotEmpty)
         .map((e) => e.trim())
         .toList();
-    debugPrint(codes.join(', '));
     _importedCodes.addAll(codes);
     _scannedCodes.addAll(codes.map((e) => ''));
     super.initState();
@@ -44,23 +41,33 @@ class _ScanScreenState extends State<ScanScreen> {
     super.dispose();
   }
 
-  void _scanDetected(BarcodeCapture capture) {
-    for (final barcode in capture.barcodes) {
-      final value = barcode.rawValue?.trim();
-      debugPrint('RESULT: $value');
-      if (_scannedCodes.contains(value)) {
-        return;
-      }
-
-      debugPrint('${_importedCodes.contains(value)}');
-      if (_importedCodes.contains(value)) {
-        _assetsAudioPlayer.open(
-          Audio('assets/audios/oke.mp3'),
-        );
-        final index = _importedCodes.indexOf(value!);
-        setState(() {
-          _scannedCodes[index] = value;
-        });
+  void _barcodeDetected(String barcode) {
+    if (barcode.isNotEmpty) {
+      if (_importedCodes.contains(barcode)) {
+        if (!_scannedCodes.contains(barcode)) {
+          _assetsAudioPlayer.open(
+            Audio(
+              'assets/audios/oke.mp3',
+              metas: Metas(title: 'oke'),
+            ),
+          );
+          final index = _importedCodes.indexOf(barcode);
+          setState(() {
+            _scannedCodes[index] = barcode;
+          });
+        } else {
+          if ((_assetsAudioPlayer.getCurrentAudioTitle == 'oke' ||
+                  _assetsAudioPlayer.getCurrentAudioTitle == 'double') &&
+              _assetsAudioPlayer.isPlaying.value) {
+            return;
+          }
+          _assetsAudioPlayer.open(
+            Audio(
+              'assets/audios/double.mp3',
+              metas: Metas(title: 'double'),
+            ),
+          );
+        }
       } else {
         if (_assetsAudioPlayer.getCurrentAudioTitle == 'salah' &&
             _assetsAudioPlayer.isPlaying.value) {
@@ -83,179 +90,135 @@ class _ScanScreenState extends State<ScanScreen> {
       mimeType: MimeType.text,
       file: widget.file,
     );
+    await FilePicker.platform.clearTemporaryFiles();
   }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Material(
-        child: Column(
-          children: [
-            const AppHeader(),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 16,
-                horizontal: 16,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Data Import : ${_importedCodes.length}',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Data Scan : ${_scannedCodes.where((e) => e.isNotEmpty).length}',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
+        child: BarcodeKeyboardListener(
+          caseSensitive: true,
+          onBarcodeScanned: _barcodeDetected,
+          child: Column(
+            children: [
+              const AppHeader(),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4,
+                  horizontal: 16,
+                ),
+                child: Row(
                   children: [
-                    for (int i = 0; i < _importedCodes.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 16,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                height: 32,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: _scannedCodes[i].isNotEmpty
-                                      ? Colors.white
-                                      : Colors.yellow,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    _scannedCodes[i].isNotEmpty
-                                        ? ''
-                                        : _importedCodes[i],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Container(
-                                height: 32,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: _scannedCodes[i].isNotEmpty
-                                      ? Colors.green
-                                      : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    _scannedCodes[i].isNotEmpty
-                                        ? _scannedCodes[i]
-                                        : '',
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                    Expanded(
+                      child: Text(
+                        'Data Import : ${_importedCodes.length}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Data Scan : ${_scannedCodes.where((e) => e.isNotEmpty).length}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32),
-              child: Column(
-                children: [
-                  if (_showScanner)
-                    Stack(
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          height: 300,
-                          clipBehavior: Clip.antiAlias,
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              top: BorderSide(width: 80),
-                              bottom: BorderSide(width: 80),
-                            ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      for (int i = 0; i < _importedCodes.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 2,
+                            horizontal: 16,
                           ),
-                          child: MobileScanner(
-                            controller: _mobileScannerController,
-                            fit: BoxFit.fitWidth,
-                            onDetect: _scanDetected,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 20,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: _scannedCodes[i].isNotEmpty
+                                        ? Colors.white
+                                        : Colors.yellow,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _scannedCodes[i].isNotEmpty
+                                          ? ''
+                                          : _importedCodes[i],
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Container(
+                                  height: 20,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: _scannedCodes[i].isNotEmpty
+                                        ? Colors.green
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _scannedCodes[i].isNotEmpty
+                                          ? _scannedCodes[i]
+                                          : '',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Positioned(
-                          bottom: 16,
-                          right: 16,
-                          child: IconButton(
-                            onPressed: () async {
-                              await _mobileScannerController?.toggleTorch();
-                              setState(() {
-                                _enableTorch = !_enableTorch;
-                              });
-                            },
-                            icon: Icon(
-                              _enableTorch ? Icons.flash_on : Icons.flash_off,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  const SizedBox(height: 16),
-                  AppButton(
-                    icon: _showScanner
-                        ? Icons.cancel_outlined
-                        : Icons.document_scanner_outlined,
-                    text: _showScanner ? 'Stop' : 'Scan',
-                    onPressed: () {
-                      setState(() {
-                        _showScanner = !_showScanner;
-                        if (_showScanner) {
-                          _mobileScannerController = MobileScannerController();
-                        }
-                      });
-                    },
+                    ],
                   ),
-                  if (_scannedCodes.where((e) => e.isNotEmpty).length ==
-                      _importedCodes.length) ...[
-                    const SizedBox(height: 16),
-                    AppButton(
-                      icon: Icons.upload,
-                      text: 'Export',
-                      onPressed: _saveFile,
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
-          ],
+              // AppButton(
+              //   icon: Icons.check,
+              //   text: 'Check',
+              //   padding: const EdgeInsets.symmetric(vertical: 8),
+              //   onPressed: () {
+              //     _barcodeDetected("RM-001");
+              //   },
+              // ),
+              if (_scannedCodes.where((e) => e.isNotEmpty).length ==
+                  _importedCodes.length) ...[
+                AppButton(
+                  icon: Icons.upload,
+                  text: 'Export',
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  onPressed: _saveFile,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
